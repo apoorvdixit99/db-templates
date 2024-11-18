@@ -1,4 +1,4 @@
-HOST="XXXX"
-USER="XXXX"
-PASSWORD = "XXXX"
-DATABASE = "XXXX"
+HOST="localhost"
+USER="root"
+PASSWORD = "root123"
+DATABASE = "NorthWind"
