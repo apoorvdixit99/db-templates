@@ -1,1 +1,1 @@
-MONGO_URI = "mongodb://localhost:27017/"
+MONGO_URI = "mongodb+srv://atharvadixit15:atharvadixit15@cluster0.zlfpx.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"

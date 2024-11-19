@@ -1,79 +1,110 @@
 from flask import Blueprint, request, jsonify
-import mysql.connector
-from pymongo import MongoClient
+from services.query_generator import MySQLTemplate
+import random
 
 chat_bp = Blueprint("chat", __name__)
 
-# MySQL Configuration
-MYSQL_CONFIG = {
-    "host": "localhost",
-    "user": "root",
-    "password": "password123",
-}
-
-# MongoDB Configuration
-MONGO_URI = "mongodb://localhost:27017/"
-mongo_client = MongoClient(MONGO_URI)
-
-def get_mysql_connection(db_name):
-    """Dynamically connect to the MySQL database."""
-    config = MYSQL_CONFIG.copy()
-    config["database"] = db_name
-    return mysql.connector.connect(**config)
-
-def fetch_response_from_mysql(db_name, question):
-    """Handle user questions for MySQL."""
-    try:
-        conn = get_mysql_connection(db_name)
-        cursor = conn.cursor()
-
-        # Example: Simulate processing the question
-        if "tables" in question.lower():
-            cursor.execute("SHOW TABLES;")
-            tables = [row[0] for row in cursor.fetchall()]
-            return f"The tables in the database are: {', '.join(tables)}."
-        else:
-            return "I'm sorry, I couldn't understand your question."
-
-    except mysql.connector.Error as err:
-        print(f"Error interacting with MySQL: {err}")
-        return "An error occurred while processing your request."
-    finally:
-        if conn:
-            conn.close()
-
-def fetch_response_from_mongo(db_name, question):
-    """Handle user questions for MongoDB."""
-    try:
-        db = mongo_client[db_name]
-
-        # Example: Simulate processing the question
-        if "collections" in question.lower():
-            collections = db.list_collection_names()
-            return f"The collections in the database are: {', '.join(collections)}."
-        else:
-            return "I'm sorry, I couldn't understand your question."
-
-    except Exception as e:
-        print(f"Error interacting with MongoDB: {e}")
-        return "An error occurred while processing your request."
-
 @chat_bp.route("/api/ask-question", methods=["POST"])
 def ask_question():
-    """API endpoint to handle user questions."""
-    data = request.json
-    question = data.get("question", "")
-    db_name = data.get("dbName", "")
-    db_type = data.get("dbType", "")
+    """Handle chat messages and respond with sample SQL queries."""
+    data = request.get_json()
 
-    if not question or not db_name or not db_type:
-        return jsonify({"answer": "Invalid request. Please provide a question, database name, and database type."}), 400
+    user_message = data.get("question")
+    db_name = data.get("dbName")
+    db_type = data.get("dbType")
 
-    if db_type == "mysql":
-        answer = fetch_response_from_mysql(db_name, question)
-    elif db_type == "mongodb":
-        answer = fetch_response_from_mongo(db_name, question)
-    else:
-        answer = "Unsupported database type."
+    if not user_message or not db_name or not db_type:
+        return jsonify({"error": "Invalid request data"}), 400
 
-    return jsonify({"answer": answer})
+    if db_type.lower() != "mysql":
+        return jsonify({"error": f"Database type {db_type} is not supported"}), 400
+
+    try:
+        mysql_template = MySQLTemplate(db_name)  # Initialize with the provided database name
+
+        # Example Mapping for Specific Queries
+        template_map = {
+            "select": mysql_template.template_select,
+            "distinct": mysql_template.template_distinct,
+            "where": mysql_template.template_where,
+            "order by": mysql_template.template_order_by,
+            "group by": mysql_template.template_group_by,
+            "join": mysql_template.template_join,
+            "in": mysql_template.template_in,
+            "between": mysql_template.template_between,
+            "having": mysql_template.template_having,
+        }
+
+        # Check for vague inputs
+        if "example sql" in user_message.lower() or "random queries" in user_message.lower():
+            random_queries = generate_random_queries(mysql_template, count=5)
+            return jsonify({"queries": random_queries, "message": "success"}), 200
+
+        # Find a specific template based on the user's message
+        selected_template = None
+        for keyword, template_func in template_map.items():
+            if keyword in user_message.lower():
+                selected_template = template_func
+                break
+
+        if not selected_template:
+            return jsonify({"error": "Query type not identified"}), 400
+
+        response = selected_template()
+        return jsonify({"query": response["query"], "message": "success"}), 200
+
+    except Exception as e:
+        print(f"Error generating query: {e}")
+        return jsonify({"error": f"Failed to generate query: {str(e)}"}), 500
+
+
+def generate_random_queries(mysql_template, count=5):
+    """Generate a list of random queries using the MySQLTemplate."""
+    templates = [
+        mysql_template.template_select,
+        mysql_template.template_distinct,
+        mysql_template.template_where,
+        mysql_template.template_order_by,
+        mysql_template.template_group_by,
+        mysql_template.template_join,
+        mysql_template.template_in,
+        mysql_template.template_between,
+        mysql_template.template_having,
+    ]
+    
+    random_queries = []
+    for _ in range(count):
+        template_func = random.choice(templates)
+        try:
+            query = template_func()["query"]
+            random_queries.append(query)
+        except Exception as e:
+            print(f"Error generating random query: {e}")
+            continue
+
+    return random_queries
+
+@chat_bp.route("/api/run-query", methods=["POST"])
+def run_query():
+    """Execute the provided SQL query and return the result."""
+    data = request.get_json()
+    query = data.get("query")
+    db_name = data.get("dbName")
+    db_type = data.get("dbType")
+
+    if not query or not db_name or not db_type:
+        return jsonify({"error": "Invalid request data"}), 400
+
+    if db_type.lower() != "mysql":
+        return jsonify({"error": f"Database type {db_type} is not supported"}), 400
+
+    try:
+        # Initialize the MySQL connection for the specified database
+        mysql_template = MySQLTemplate(db_name)
+
+        # Execute the query with enforced limit
+        result = mysql_template.execute_query(query)
+        return jsonify({"result": result}), 200
+    except Exception as e:
+        print(f"Error executing query: {e}")
+        return jsonify({"error": f"Failed to execute query: {str(e)}"}), 500

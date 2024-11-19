@@ -3,13 +3,12 @@ import random
 from settings import *
 
 class MySQLTemplate:
-
-    def __init__(self):
+    def __init__(self, db_name):
         self.connection = mysql.connector.connect(
             host=HOST,
             user=USER,
             password=PASSWORD,
-            database=DATABASE
+            database=db_name  # Dynamic database
         )
         self.cursor = self.connection.cursor()
         self.tables = self.get_tables()
