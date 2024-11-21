@@ -110,7 +110,7 @@ class MongoDBTemplate:
             'query_str': query_str
         }
     
-    def template_math_operations(self):
+    def template_find_math_operations(self):
         collection = random.choice(self.collections)
         query_type = 'find'
 
@@ -141,7 +141,7 @@ class MongoDBTemplate:
         }
     
     
-    def template_regex(self):
+    def template_find_regex(self):
         collection = random.choice(self.collections)
         query_type = 'find'
 
@@ -155,7 +155,7 @@ class MongoDBTemplate:
         value = random.choice(value)
         case_insensitive = random.choice([0,1])
 
-        if case_insensitive is 0:
+        if case_insensitive == 0:
             query_params = {
                 attr: {
                     "$regex": value
@@ -173,6 +173,52 @@ class MongoDBTemplate:
             }
             query_params_str = {
                 attr: f'/{value}/i'
+            }
+        query_projection = {
+            attr: 1,
+            '_id': 1
+        }
+        query_str = f"""db.{collection}.{query_type}({query_params_str},{query_projection})"""
+        return {
+            'query_type': query_type,
+            'query_params': query_params,
+            'collection': collection,
+            'query_str': query_str,
+            'query_projection': query_projection
+        }
+    
+    def template_find_regex_2(self):
+        collection = random.choice(self.collections)
+        query_type = 'find'
+
+        attributes = self.get_attribute_types(collection)
+        str_attributes = [key for key, value in attributes.items() if value == 'str']
+        attr = random.choice(str_attributes)
+        unique_values = self.db[collection].distinct(attr)
+        unique_values = list(unique_values)
+        value = random.choice(unique_values)
+        value = value.split(' ')
+        starts_with = random.choice([0,1])
+
+        if starts_with == 1:
+            value = value[0]
+            query_params = {
+                attr: {
+                    "$regex": f"^{value}"
+                }
+            }
+            query_params_str = {
+                attr: f'/^{value}/'
+            }
+        else:
+            value = value[-1]
+            query_params = {
+                attr: {
+                    "$regex": f"{value}$"
+                }
+            }
+            query_params_str = {
+                attr: f'/{value}$/'
             }
         query_projection = {
             attr: 1,
