@@ -127,6 +127,8 @@ class MongoDBTemplate:
                 op: value
             }
         }
+        if op=='$ne':
+            query_params[attr]['$exists'] = True
         query_projection = {
             attr: 1,
             '_id': 1
@@ -225,6 +227,84 @@ class MongoDBTemplate:
             '_id': 1
         }
         query_str = f"""db.{collection}.{query_type}({query_params_str},{query_projection})"""
+        return {
+            'query_type': query_type,
+            'query_params': query_params,
+            'collection': collection,
+            'query_str': query_str,
+            'query_projection': query_projection
+        }
+    
+    def template_find_and(self):
+        collection = random.choice(self.collections)
+        query_type = 'find'
+
+        attributes = self.get_attribute_types(collection)
+        int_attributes = [key for key, value in attributes.items() if value == 'int']
+        attr = random.choice(int_attributes)
+        unique_values = self.db[collection].distinct(attr)
+        unique_values = list(unique_values)
+        value1, value2 = sorted(random.sample(unique_values, 2))
+
+        query_params = {
+            "$and": [
+                {
+                    attr: {
+                        "$gte": value1
+                    }
+                },
+                {
+                    attr: {
+                        "$lte": value2
+                    }
+
+                }
+            ]
+        }
+        query_projection = {
+            attr: 1,
+            '_id': 1
+        }
+        query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
+        return {
+            'query_type': query_type,
+            'query_params': query_params,
+            'collection': collection,
+            'query_str': query_str,
+            'query_projection': query_projection
+        }
+    
+    def template_find_or(self):
+        collection = random.choice(self.collections)
+        query_type = 'find'
+
+        attributes = self.get_attribute_types(collection)
+        int_attributes = [key for key, value in attributes.items() if value == 'int']
+        attr = random.choice(int_attributes)
+        unique_values = self.db[collection].distinct(attr)
+        unique_values = list(unique_values)
+        value1, value2 = sorted(random.sample(unique_values, 2))
+
+        query_params = {
+            "$or": [
+                {
+                    attr: {
+                        "$eq": value1
+                    }
+                },
+                {
+                    attr: {
+                        "$eq": value2
+                    }
+
+                }
+            ]
+        }
+        query_projection = {
+            attr: 1,
+            '_id': 1
+        }
+        query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
         return {
             'query_type': query_type,
             'query_params': query_params,
