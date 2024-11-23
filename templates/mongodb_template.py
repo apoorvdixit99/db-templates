@@ -364,7 +364,6 @@ class MongoDBTemplate:
             values_subset, 
             min(len(values_subset), random.randint(3,5))
         )
-        print(values_subset)
 
         query_params = {
             attr: {
@@ -406,7 +405,6 @@ class MongoDBTemplate:
             values_subset, 
             min(len(values_subset), random.randint(3,5))
         )
-        print(values_subset)
 
         query_params = {
             attr: {
@@ -425,3 +423,54 @@ class MongoDBTemplate:
             'query_str': query_str,
             'query_projection': query_projection
         }
+
+    # def template_find_elemmatch(self):
+    #     collection = random.choice(self.collections)
+    #     query_type = 'find'
+
+    #     attributes = self.get_attribute_types(collection)
+    #     dict_attributes = [key for key, value in attributes.items() if value == 'dict']
+    #     attr = random.choice(dict_attributes)
+    #     unique_values = self.db[collection].distinct(attr)
+    #     unique_values = list(unique_values)
+    #     value = random.choice(unique_values)
+    #     print(value)
+    #     nested_key1, nested_key2 = random.sample(list(value.keys()), 2)
+    #     nested_value1, nested_value2 = value[nested_key1], value[nested_key2]
+
+    #     query_params = {
+    #         attr: {
+    #             "$elemMatch": {
+    #                 nested_key1: nested_value1,
+    #                 nested_key2: nested_value2
+    #             }
+    #         }
+    #     }
+    #     query_projection = {
+    #         attr: 1,
+    #         '_id': 1
+    #     }
+    #     query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
+    #     docs = self.db[collection].find(
+    #         {
+    #             attr: {
+    #                 "$elemMatch": {
+    #                     nested_key1: {"$eq": nested_value1},
+    #                     nested_key2: {"$eq": nested_value2}
+    #                 }
+    #             }
+    #         },
+    #         {
+    #             attr: 1,
+    #             "_id": 1
+    #         }
+    #     )
+    #     for doc in docs:
+    #         print(doc)
+    #     return {
+    #         'query_type': query_type,
+    #         'query_params': query_params,
+    #         'collection': collection,
+    #         'query_str': query_str,
+    #         'query_projection': query_projection
+    #     }
