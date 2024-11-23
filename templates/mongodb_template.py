@@ -341,3 +341,87 @@ class MongoDBTemplate:
             'query_str': query_str,
             'query_projection': query_projection
         }
+
+    def template_find_array_all(self):
+        collection = random.choice(self.collections)
+        query_type = 'find'
+
+        attributes = self.get_attribute_types(collection)
+        list_attributes = [key for key, value in attributes.items() if value == 'list']
+        attr = random.choice(list_attributes)
+        doc_len = self.db[collection].count_documents(
+            {attr: {"$exists": True}}
+        )
+        random_index = random.randint(
+            2, 
+            doc_len
+        ) - 1
+        random_doc = self.db[collection].find(
+            {attr: {"$exists": True}}
+        ).skip(random_index).limit(1)
+        values_subset = list(random_doc[0][attr])
+        values_subset = random.sample(
+            values_subset, 
+            min(len(values_subset), random.randint(3,5))
+        )
+        print(values_subset)
+
+        query_params = {
+            attr: {
+                "$all": values_subset
+            }
+        }
+        query_projection = {
+            attr: 1,
+            '_id': 1
+        }
+        query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
+        return {
+            'query_type': query_type,
+            'query_params': query_params,
+            'collection': collection,
+            'query_str': query_str,
+            'query_projection': query_projection
+        }
+
+    def template_find_array_in(self):
+        collection = random.choice(self.collections)
+        query_type = 'find'
+
+        attributes = self.get_attribute_types(collection)
+        list_attributes = [key for key, value in attributes.items() if value == 'list']
+        attr = random.choice(list_attributes)
+        doc_len = self.db[collection].count_documents(
+            {attr: {"$exists": True}}
+        )
+        random_index = random.randint(
+            2, 
+            doc_len
+        ) - 1
+        random_doc = self.db[collection].find(
+            {attr: {"$exists": True}}
+        ).skip(random_index).limit(1)
+        values_subset = list(random_doc[0][attr])
+        values_subset = random.sample(
+            values_subset, 
+            min(len(values_subset), random.randint(3,5))
+        )
+        print(values_subset)
+
+        query_params = {
+            attr: {
+                "$in": values_subset
+            }
+        }
+        query_projection = {
+            attr: 1,
+            '_id': 1
+        }
+        query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
+        return {
+            'query_type': query_type,
+            'query_params': query_params,
+            'collection': collection,
+            'query_str': query_str,
+            'query_projection': query_projection
+        }
