@@ -312,3 +312,32 @@ class MongoDBTemplate:
             'query_str': query_str,
             'query_projection': query_projection
         }
+
+    def template_find_nested_attribute(self):
+        collection = random.choice(self.collections)
+        query_type = 'find'
+
+        attributes = self.get_attribute_types(collection)
+        dict_attributes = [key for key, value in attributes.items() if value == 'dict']
+        attr = random.choice(dict_attributes)
+        unique_values = self.db[collection].distinct(attr)
+        unique_values = list(unique_values)
+        value = random.choice(unique_values)
+        nested_key = random.choice(list(value.keys()))
+        nested_value = value[nested_key]
+
+        query_params = {
+            f"{attr}.{nested_key}": nested_value 
+        }
+        query_projection = {
+            attr: 1,
+            '_id': 1
+        }
+        query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
+        return {
+            'query_type': query_type,
+            'query_params': query_params,
+            'collection': collection,
+            'query_str': query_str,
+            'query_projection': query_projection
+        }
