@@ -427,7 +427,6 @@ class MongoDBTemplate:
     # def template_find_elemmatch(self):
     #     collection = random.choice(self.collections)
     #     query_type = 'find'
-
     #     attributes = self.get_attribute_types(collection)
     #     dict_attributes = [key for key, value in attributes.items() if value == 'dict']
     #     attr = random.choice(dict_attributes)
@@ -437,7 +436,6 @@ class MongoDBTemplate:
     #     print(value)
     #     nested_key1, nested_key2 = random.sample(list(value.keys()), 2)
     #     nested_value1, nested_value2 = value[nested_key1], value[nested_key2]
-
     #     query_params = {
     #         attr: {
     #             "$elemMatch": {
@@ -474,3 +472,36 @@ class MongoDBTemplate:
     #         'query_str': query_str,
     #         'query_projection': query_projection
     #     }
+
+    def template_update_one_set(self):
+        pass
+
+    def template_update_one_unset(self):
+        pass
+
+    def template_update_many(self):
+        pass
+
+    def template_sort(self):
+        pass
+
+    def template_count_documents(self):
+        pass
+
+    def template_distinct(self):
+        pass
+
+    def template_match(self):
+        pass
+
+    def template_project(self):
+        pass
+
+    def template_unwind(self):
+        pass
+
+    def template_multiply(self):
+        pass
+
+    def template_lookup(self):
+        pass
