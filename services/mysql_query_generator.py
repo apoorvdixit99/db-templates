@@ -381,15 +381,22 @@ class MySQLTemplate:
         desc = f"Display distinct values of column '{column}' the table '{table}'"
         return {"query": query, "desc": desc, "message": "success"}
 
-    def template_where(self):
+    def template_where(self, params=None):
         """
         Generate a WHERE query.
         """
-        table = random.choice(self.tables)
-        column = random.choice(self.get_column_names(table))
-        value = random.choice(self.get_column_values(table, column))
+        table, column, value = None, None, None
+        if params == None:
+            table = random.choice(self.tables)
+            column = random.choice(self.get_column_names(table))
+            value = random.choice(self.get_column_values(table, column))
+        else:
+            table = params['table']
+            column = params['column']
+            value = params['value']
         query = f"SELECT * FROM `{table}` WHERE `{column}` = '{value}';"
-        return {"query": query, "message": "success"}
+        desc = f"Display those records of table '{table}' whose '{column}' is '{value}'"
+        return {"query": query, "desc": desc, "message": "success"}
 
     def template_order_by(self):
         """
