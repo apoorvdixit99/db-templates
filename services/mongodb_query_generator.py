@@ -47,6 +47,7 @@ class MongoDBTemplate:
         collection = random.choice(self.collections)
         fields = self.get_collection_fields(collection)
         if not fields:
+            print(fields + "Here, will return empty")
             return {"query_str": "", "message": "No fields available for projection"}
 
         projection = {field: 1 for field in random.sample(fields, min(len(fields), 3))}

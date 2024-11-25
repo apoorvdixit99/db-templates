@@ -1,6 +1,7 @@
 from pymongo.mongo_client import MongoClient
 from pymongo.server_api import ServerApi
 import random
+from config.mongo_config import MONGO_URI
 import json
 
 USER = 'root'
@@ -11,10 +12,13 @@ URI = """mongodb+srv://{}:{}@cluster0.jgquf.mongodb.net/?retryWrites=true&w=majo
 
 class MongoDBTemplate:
 
-    def __init__(self):
+    def __init__(self, db_name, uri="mongodb://localhost:27017/"):
         self.uri = URI
-        self.client = MongoClient(self.uri, server_api=ServerApi('1'))
-        self.db = self.client[DATABASE]
+        # self.client = MongoClient(self.uri, server_api=ServerApi('1'))
+        # self.db = self.client[DATABASE]
+        # self.collections = self.db.list_collection_names()
+        self.client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
+        self.db = self.client[db_name]
         self.collections = self.db.list_collection_names()
         self.math_operations = ['$gte', '$gt', '$lte', '$lt', '$eq', '$ne']
     
@@ -41,25 +45,62 @@ class MongoDBTemplate:
             sample_documents.append(sample_document)
         return sample_documents
     
+    # def execute_query(self, query):
+    #     collection_name = query['collection']
+    #     collection = self.db[collection_name]
+    #     def default_case():
+    #         return "Invalid Query"
+    #     switch = {
+    #         "insertOne": collection.insert_one,
+    #         "insertMany": collection.insert_many,
+    #         "find": collection.find
+    #     }
+    #     query_func = switch.get(
+    #         query['query_type'], 
+    #         default_case
+    #     )
+    #     if 'query_projection' not in query.keys():
+    #         result = query_func(query['query_params'])
+    #     else:
+    #         result = query_func(query['query_params'], query['query_projection'])
+    #     return result
+
     def execute_query(self, query):
         collection_name = query['collection']
         collection = self.db[collection_name]
+
         def default_case():
-            return "Invalid Query"
+            raise ValueError("Invalid Query Type")
+
+        # Define query type handlers
         switch = {
             "insertOne": collection.insert_one,
             "insertMany": collection.insert_many,
             "find": collection.find
         }
-        query_func = switch.get(
-            query['query_type'], 
-            default_case
-        )
-        if 'query_projection' not in query.keys():
-            result = query_func(query['query_params'])
-        else:
-            result = query_func(query['query_params'], query['query_projection'])
-        return result
+
+        # Select the appropriate query function
+        query_func = switch.get(query['query_type'], default_case)
+
+        try:
+            # Execute the query based on the presence of projection
+            if 'query_projection' not in query.keys():
+                result = query_func(query['query_params'])
+            else:
+                result = query_func(query['query_params'], query['query_projection'])
+
+            # Handle the result for each query type
+            if query['query_type'] == "find":
+                # Convert cursor to list for JSON serialization
+                return list(result)
+            elif query['query_type'] in ["insertOne", "insertMany"]:
+                # Return insert acknowledgment as string
+                return {"acknowledged": result.acknowledged, "inserted_ids": getattr(result, "inserted_ids", [result.inserted_id])}
+            else:
+                raise ValueError("Unsupported query type")
+
+        except Exception as e:
+            raise RuntimeError(f"Error executing query: {e}")
     
     def get_attribute_types(self, collection_name):
         result = {}
