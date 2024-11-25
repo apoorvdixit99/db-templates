@@ -291,7 +291,7 @@ class MySQLTemplate:
         self.connection = mysql.connector.connect(
             host="localhost",  # Replace with your MySQL host
             user="root",       # Replace with your MySQL username
-            password="mysql",  # Replace with your MySQL password
+            password="password123",  # Replace with your MySQL password
             database=db_name
         )
         self.db_name = db_name

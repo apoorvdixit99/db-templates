@@ -6,6 +6,7 @@ import ast
 import json
 from bson.decimal128 import Decimal128
 from bson import ObjectId
+import re
 
 
 chat_bp = Blueprint("chat", __name__)
@@ -74,6 +75,7 @@ def ask_question():
 
             # Example Mapping for Specific Queries
             template_map = {
+                    "find projection": mongodb_template.template_find_with_projection,
                     "find": mongodb_template.template_find,
                     # "find and sort": mongodb_template.template_find_and_sort,
                     # "in": mongodb_template.template_find_array_in,
@@ -88,30 +90,111 @@ def ask_question():
                     "and condition": mongodb_template.template_find_and,
                     "all": mongodb_template.template_find_array_all,
                     "nested": mongodb_template.template_find_nested_attribute
+                    
             }
+
+            # Identify template, collection, field, and value
+            known_collections = mongodb_template.get_all_collections()  # Assume this retrieves all collection names
+            
+            known_fields = []
+
+            # Flatten the list of fields from all collections
+            for col in known_collections:
+                fields = mongodb_template.get_collection_fields(col)  # Assume this retrieves all fields for a collection
+                if fields:
+                    known_fields.extend(fields)  # Add fields to the flattened list
+
+            # Remove duplicates (if any) from the known_fields list
+            known_fields = list(set(known_fields))
+
+            extraction_result = identify_template_and_extract(user_message, known_collections, known_fields)
+
+            if "error" in extraction_result:
+                return jsonify({"error": extraction_result["error"]}), 400
+
+            # Extract details
+            identified_template = extraction_result["template"]
+            collection = extraction_result["collection"]
+            field = extraction_result["field"]
+            value = extraction_result["value"]
+
+            print(collection)
+            print(identified_template)
+            print(field)
+            print(value)
+
+            # Match the identified template with the template map
+            if identified_template == "math operations":
+                # Check if field and value are identified for math operations
+                if not field or not value:
+                    return jsonify({"error": "Field or value not identified for math operations"}), 400
+
+                # Extract the last word in the value and convert to integer
+                try:
+                    extracted_value = int(value.split()[-1])  # Extract the last word and convert to integer
+                except ValueError:
+                    return jsonify({"error": f"Invalid value for math operation: '{value}'"}), 400
+
+                # Build query_params for math operations
+                query_params = {field: {extraction_result["mongo_operator"]: extracted_value}}
+
+                # Call the math operations template
+                response = template_map[identified_template](
+                    collection=collection,
+                    query_params=query_params
+                )
+            elif identified_template == "find projection":
+                # Call the projection template with extracted details
+                response = template_map[identified_template](
+                    collection=collection,
+                    field=field,
+                    value=value
+                )
+            else:
+                # Handle other templates
+                response = template_map[identified_template](
+                    collection=collection,
+                    field=field,
+                    value=value
+                )
+
+            # Return the response
+            print(response)
+            return jsonify(response), 200
+
+
+            # Match the identified template with the template map
+            # selected_template = template_map.get(identified_template)
+            # if not selected_template:
+            #     return jsonify({"error": "Query type not identified"}), 400
+
+            # # Call the selected template with extracted details
+            # response = selected_template(collection=collection, field=field, value=value)
+            # print(response)
+            # return jsonify(response), 200
 
 
             # Check for vague inputs
-            if "example queries" in user_message.lower() or "random queries" in user_message.lower():
-                random_queries = generate_random_queries(mongodb_template, count=5)
-                print(random_queries)
-                # return jsonify({"queries": random_queries, "message": "success"}), 200
-                return jsonify(random_queries), 200
+            # if "example queries" in user_message.lower() or "random queries" in user_message.lower():
+            #     random_queries = generate_random_queries(mongodb_template, count=5)
+            #     print(random_queries)
+            #     # return jsonify({"queries": random_queries, "message": "success"}), 200
+            #     return jsonify(random_queries), 200
 
-            # Find a specific template based on the user's message
-            selected_template = None
-            for keyword, template_func in template_map.items():
-                if keyword in user_message.lower():
-                    selected_template = template_func
-                    print(keyword)
-                    break
+            # # Find a specific template based on the user's message
+            # selected_template = None
+            # for keyword, template_func in template_map.items():
+            #     if keyword in user_message.lower():
+            #         selected_template = template_func
+            #         print(keyword)
+            #         break
 
-            if not selected_template:
-                return jsonify({"error": "Query type not identified"}), 400
+            # if not selected_template:
+            #     return jsonify({"error": "Query type not identified"}), 400
 
-            response = selected_template()
-            print(response)
-            return jsonify(response), 200
+            # response = selected_template()
+            # print(response)
+            # return jsonify(response), 200
 
         except Exception as e:
             print(f"Error generating MongoDB query: {e}")
@@ -119,6 +202,136 @@ def ask_question():
 
     else:
         return jsonify({"error": f"Database type {db_type} is not supported"}), 400
+
+# Mapping of user intents to MongoDB templates
+mongodb_template_mapping = {
+    "math operations": ["sum", "average", "greater than", "less than", "more than"],
+    "find projection": ["find all", "list all", "fetch all", "find projection"],
+    "find": ["find", "fetch", "list"],
+    "regex": ["match", "regex", "pattern"],
+    "insert many": ["insert multiple", "add many", "create many"],
+    "insert one": ["insert", "add", "create"],
+    "or condition": ["either", "or"],
+    "and condition": ["and", "both"],
+    "all": ["all elements", "all values"],
+    "nested": ["nested attribute", "embedded document"],
+}
+
+# def identify_template_and_extract(user_input, known_collections, known_fields):
+#     """
+#     Identify the MongoDB template, collection name, field, and value from user input.
+#     """
+#     # Identify the template based on user input
+#     identified_template = None
+#     for template, keywords in mongodb_template_mapping.items():
+#         for keyword in keywords:
+#             if keyword in user_input.lower():
+#                 identified_template = template
+#                 break
+#         if identified_template:
+#             break
+
+#     if not identified_template:
+#         return {"error": "Template not identified"}
+
+#     # Extract collection name using known collections
+#     collection_name = None
+#     for collection in known_collections:
+#         collection_pattern = rf"\b{collection}\b"
+#         if re.search(collection_pattern, user_input, re.IGNORECASE):
+#             collection_name = collection
+#             break
+
+#     # Extract field and value using known fields
+#     field = None
+#     value = None
+#     for known_field in known_fields:
+#         field_pattern = rf"\b{known_field}\b"  # Match known field name
+#         # Match value associated with the field
+#         value_pattern = rf"{known_field}\s+(is|are|serving|of|with)?\s*(['\"]?[a-zA-Z0-9\s]+['\"]?)"
+
+#         # Check if the field is present in the user input
+#         if re.search(field_pattern, user_input, re.IGNORECASE):
+#             field = known_field
+#             match = re.search(value_pattern, user_input, re.IGNORECASE)
+#             if match:
+#                 value = match.group(2).strip().strip('"').strip("'")  # Extract the value and clean it
+#             break
+
+#     return {
+#         "template": identified_template,
+#         "collection": collection_name,
+#         "field": field,
+#         "value": value,
+#     }
+
+#2
+def identify_template_and_extract(user_input, known_collections, known_fields):
+    """
+    Identify the MongoDB template, collection name, field, and value from user input.
+    """
+    # Identify the template based on user input
+    identified_template = None
+
+    for template, keywords in mongodb_template_mapping.items():
+        for keyword in keywords:
+            if keyword in user_input.lower():
+                identified_template = template
+                break
+        if identified_template:
+            break
+
+    if not identified_template:
+        return {"error": "Template not identified"}
+
+    # Extract collection name using known collections
+    collection_name = None
+    for collection in known_collections:
+        collection_pattern = rf"\b{collection}\b"
+        if re.search(collection_pattern, user_input, re.IGNORECASE):
+            collection_name = collection
+            break
+
+    # Extract field, operator, and value using known fields
+    field = None
+    operator = None
+    value = None
+    for known_field in known_fields:
+        field_pattern = rf"\b{known_field}\b"  # Match the field name as a whole word
+        if re.search(field_pattern, user_input, re.IGNORECASE):
+            field = known_field  # Field is found
+
+            # Look for math operations or textual conditions
+            value_pattern = rf"{known_field}.*?(is|are|serving|of|with)?\s+(['\"]?[a-zA-Z0-9\s]+['\"]?)"
+            match = re.search(value_pattern, user_input, re.IGNORECASE)
+            if match:
+                operator = match.group(1).strip().lower() if match.group(1) else None  # Extract the operator
+                value = match.group(2).strip().strip('"').strip("'")  # Extract and clean value
+            break
+
+    # Map operator to MongoDB query operator (for math operations)
+    mongo_operator_map = {
+        "greater than": "$gt",
+        "more than": "$gt",
+        "less than": "$lt",
+        "fewer than": "$lt",
+        "is": "$eq",
+        "are": "$eq",
+    }
+    mongo_operator = mongo_operator_map.get(operator, "$eq")  # Default to "$eq" if no operator
+
+    # Prepare query condition for math operations
+    query_condition = {field: {mongo_operator: value}} if field and value else {}
+
+    return {
+        "template": identified_template,
+        "collection": collection_name,
+        "field": field,
+        "value": value,
+        "operator": operator,
+        "mongo_operator": mongo_operator,
+        "query_condition": query_condition,
+    }
 
 
 def generate_random_queries(template, count=5):

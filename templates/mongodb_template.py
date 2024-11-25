@@ -45,6 +45,9 @@ class MongoDBTemplate:
             sample_documents.append(sample_document)
         return sample_documents
     
+    def get_all_collections(self):
+        return self.collections
+    
     # def execute_query(self, query):
     #     collection_name = query['collection']
     #     collection = self.db[collection_name]
@@ -109,6 +112,12 @@ class MongoDBTemplate:
         for key, value in first_document.items():
             result[key] = type(value).__name__
         return result
+    
+    def get_collection_fields(self, collection_name):
+        document = self.db[collection_name].find_one()
+        if not document:
+            return []
+        return list(document.keys())
 
 
     # Templates
@@ -139,6 +148,115 @@ class MongoDBTemplate:
             'query_str': query_str
         }
     
+    # def template_find_math_operations(self):
+    #     collection = random.choice(self.collections)
+    #     query_type = 'find'
+
+    #     attributes = self.get_attribute_types(collection)
+    #     int_attributes = [key for key, value in attributes.items() if value == 'int']
+    #     attr = random.choice(int_attributes)
+    #     unique_values = self.db[collection].distinct(attr)
+    #     unique_values = list(unique_values)
+    #     value = random.choice(unique_values)
+    #     op = random.choice(self.math_operations)
+
+    #     query_params = {
+    #         attr: {
+    #             op: value
+    #         }
+    #     }
+    #     if op=='$ne':
+    #         query_params[attr]['$exists'] = True
+    #     query_projection = {
+    #         attr: 1,
+    #         '_id': 1
+    #     }
+    #     query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
+    #     return {
+    #         'query_type': query_type,
+    #         'query_params': query_params,
+    #         'collection': collection,
+    #         'query_str': query_str,
+    #         'query_projection': query_projection
+    #     }
+
+    def template_find_math_operations(self, collection=None, query_params=None):
+        """
+        Generate a MongoDB find query with math operations.
+        If query_params are provided, use them; otherwise, generate random parameters.
+        """
+        # If no collection is provided, choose a random one
+        collection = collection or random.choice(self.collections)
+        query_type = 'find'
+
+        if query_params:
+            # Use provided query_params directly
+            query_projection = {key: 1 for key in query_params.keys()}
+            query_projection['_id'] = 1
+            query_str = f"""db.{collection}.{query_type}({json.dumps(query_params)}, {json.dumps(query_projection)})"""
+            return {
+                'query_type': query_type,
+                'query_params': query_params,
+                'collection': collection,
+                'query_str': query_str,
+                'query_projection': query_projection
+            }
+
+        # If no query_params are provided, generate random parameters
+        attributes = self.get_attribute_types(collection)  # Get attribute types for the collection
+        int_attributes = [key for key, value in attributes.items() if value == 'int']  # Filter integer attributes
+
+        if not int_attributes:
+            return {
+                'query_type': query_type,
+                'query_params': {},
+                'collection': collection,
+                'query_str': "",
+                'query_projection': {},
+                'message': "No integer attributes available for math operations"
+            }
+
+        attr = random.choice(int_attributes)  # Choose a random integer attribute
+        unique_values = self.db[collection].distinct(attr)  # Get distinct values for the attribute
+        unique_values = [val for val in unique_values if isinstance(val, (int, float))]  # Ensure values are numeric
+
+        if not unique_values:
+            return {
+                'query_type': query_type,
+                'query_params': {},
+                'collection': collection,
+                'query_str': "",
+                'query_projection': {},
+                'message': "No numeric values available for math operations"
+            }
+
+        value = random.choice(unique_values)
+        op = random.choice(self.math_operations)  # Choose a random operation (e.g., $gt, $lt, $ne)
+
+        # Construct query parameters
+        query_params = {
+            attr: {
+                op: value
+            }
+        }
+        if op == '$ne':
+            query_params[attr]['$exists'] = True
+
+        query_projection = {
+            attr: 1,
+            '_id': 1
+        }
+        query_str = f"""db.{collection}.{query_type}({json.dumps(query_params)}, {json.dumps(query_projection)})"""
+
+        return {
+            'query_type': query_type,
+            'query_params': query_params,
+            'collection': collection,
+            'query_str': query_str,
+            'query_projection': query_projection
+        }
+
+    
     def template_find(self):
         collection = random.choice(self.collections)
         query_type = 'find'
@@ -151,37 +269,104 @@ class MongoDBTemplate:
             'query_str': query_str
         }
     
-    def template_find_math_operations(self):
-        collection = random.choice(self.collections)
-        query_type = 'find'
+    # def template_find_with_projection(self):
+    #     """Generate a MongoDB find query with random projection fields."""
+    #     collection = random.choice(self.collections)  # Select a random collection
+    #     fields = self.get_collection_fields(collection)  # Retrieve fields for the collection
+        
+    #     if not fields:
+    #         print(fields + " - No fields available for projection")  # Debugging message
+    #         return {
+    #             'query_type': "find",
+    #             'query_params': {},
+    #             'collection': collection,
+    #             'query_str': "",
+    #             'query_projection': {}
+    #         }
 
-        attributes = self.get_attribute_types(collection)
-        int_attributes = [key for key, value in attributes.items() if value == 'int']
-        attr = random.choice(int_attributes)
-        unique_values = self.db[collection].distinct(attr)
-        unique_values = list(unique_values)
-        value = random.choice(unique_values)
-        op = random.choice(self.math_operations)
+    #     # Generate a random projection with up to 3 fields
+    #     projection = {field: 1 for field in random.sample(fields, min(len(fields), 3))}
+        
+    #     # Construct the query string
+    #     query_str = f"db.{collection}.find({{}}, {json.dumps(projection)})"
+    #     print("HERE!!!")
+    #     # Return the correctly formatted response
+    #     return {
+    #         'query_type': "find",
+    #         'query_params': {},  # No filter conditions specified in this template
+    #         'collection': collection,
+    #         'query_str': query_str,
+    #         'query_projection': projection
+    #     }
 
-        query_params = {
-            attr: {
-                op: value
+    # def template_find_with_projection(self, collection=None, field=None, value=None):
+    #     """Generate a MongoDB find query with random projection fields."""
+    #     if not collection:
+    #         collection = random.choice(self.collections)  # Default to a random collection
+
+    #     fields = self.get_collection_fields(collection)  # Retrieve fields for the collection
+
+    #     if not fields:
+    #         return {
+    #             'query_type': "find",
+    #             'query_params': {},
+    #             'collection': collection,
+    #             'query_str': "",
+    #             'query_projection': {},
+    #             'message': "No fields available for projection"
+    #         }
+
+    #     # Generate a random projection with up to 3 fields
+    #     projection = {field: 1 for field in random.sample(fields, min(len(fields), 3))}
+        
+    #     # Construct the query string
+    #     query_str = f"db.{collection}.find({{}}, {json.dumps(projection)})"
+
+    #     return {
+    #         'query_type': "find",
+    #         'query_params': {},  # No filter conditions specified in this template
+    #         'collection': collection,
+    #         'query_str': query_str,
+    #         'query_projection': projection,
+    #         'message': "success"
+    #     }
+
+    def template_find_with_projection(self, collection=None, field=None, value=None):
+        """Generate a MongoDB find query with random projection fields and optional filter."""
+        if not collection:
+            collection = random.choice(self.collections)  # Default to a random collection
+
+        fields = self.get_collection_fields(collection)  # Retrieve fields for the collection
+
+        if not fields:
+            return {
+                'query_type': "find",
+                'query_params': {},
+                'collection': collection,
+                'query_str': "",
+                'query_projection': {},
+                'message': "No fields available for projection"
             }
-        }
-        if op=='$ne':
-            query_params[attr]['$exists'] = True
-        query_projection = {
-            attr: 1,
-            '_id': 1
-        }
-        query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
+
+        # Generate filter condition based on field and value
+        query_params = {field: value} if field and value else {}
+
+        # Generate a random projection with up to 3 fields
+        projection = {field: 1 for field in random.sample(fields, min(len(fields), 3))}
+
+        # Construct the query string
+        query_str = f"db.{collection}.find({json.dumps(query_params)}, {json.dumps(projection)})"
+
         return {
-            'query_type': query_type,
+            'query_type': "find",
             'query_params': query_params,
             'collection': collection,
             'query_str': query_str,
-            'query_projection': query_projection
+            'query_projection': projection,
+            'message': "success"
         }
+
+
     
     
     def template_find_regex(self):
