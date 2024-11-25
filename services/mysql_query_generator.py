@@ -497,25 +497,36 @@ class MySQLTemplate:
             print(f"Error fetching string columns for table {table}: {e}")
             return []  # Return an empty list on failure
 
-    def template_between(self, threshold=10):
+    def template_between(self, threshold=10, params=None):
         """
         Generate a BETWEEN query with enhanced logging and error handling.
         """
-        for _ in range(threshold):  # Retry up to 'threshold' times
-            table = random.choice(self.tables)
-            numeric_columns = self.get_column_num_names(table)
-            if numeric_columns:
-                column = random.choice(numeric_columns)
-                values = self.get_column_values(table, column)
-                if len(values) >= 2:
-                    try:
-                        start, end = sorted(random.sample(values, 2))
-                        query = f"SELECT * FROM `{table}` WHERE `{column}` BETWEEN {start} AND {end};"
-                        return {"query": query, "message": "success"}
-                    except Exception as e:
-                        print(f"Error sampling values: {e}")
-                        continue
-        return {"query": "", "message": "Unable to generate a valid BETWEEN query"}
+        if params == None:
+            for _ in range(threshold):  # Retry up to 'threshold' times
+                table = random.choice(self.tables)
+                numeric_columns = self.get_column_num_names(table)
+                if numeric_columns:
+                    column = random.choice(numeric_columns)
+                    values = self.get_column_values(table, column)
+                    if len(values) >= 2:
+                        try:
+                            start, end = sorted(random.sample(values, 2))
+                            query = f"SELECT * FROM `{table}` WHERE `{column}` BETWEEN {start} AND {end};"
+                            desc = f"Display rows of table '{table}' whose '{column}' ranges from {start} to {end}"
+                            return {"query": query, "desc": desc, "message": "success"}
+                        except Exception as e:
+                            print(f"Error sampling values: {e}")
+                            continue
+            return {"query": "", "message": "Unable to generate a valid BETWEEN query"}
+        else:
+            table = params['table']
+            column = params['column']
+            start = params['start']
+            end = params['end']
+            query = f"SELECT * FROM `{table}` WHERE `{column}` BETWEEN {start} AND {end};"
+            desc = f"Display rows of table '{table}' whose '{column}' ranges from {start} to {end}"
+            return {"query": query, "desc": desc, "message": "success"}
+
 
     def template_having(self, threshold=10):
         for _ in range(threshold):
