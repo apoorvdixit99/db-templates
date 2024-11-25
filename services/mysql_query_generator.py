@@ -363,37 +363,57 @@ class MySQLTemplate:
         else:
             table = params['table']
         query = f"SELECT * FROM `{table}` LIMIT {limit};"
-        desc = f"Display the table {table}"
+        desc = f"Display rows of table '{table}'"
         return {"query": query, "desc": desc, "message": "success"}
 
-    def template_distinct(self):
+    def template_distinct(self, params=None):
         """
         Generate a DISTINCT query.
         """
-        table = random.choice(self.tables)
-        column = random.choice(self.get_column_names(table))
+        table, column = None, None
+        if params == None:
+            table = random.choice(self.tables)
+            column = random.choice(self.get_column_names(table))
+        else:
+            table = params['table']
+            column = params['column']
         query = f"SELECT DISTINCT `{column}` FROM `{table}`;"
-        return {"query": query, "message": "success"}
+        desc = f"Display distinct values of column '{column}' the table '{table}'"
+        return {"query": query, "desc": desc, "message": "success"}
 
-    def template_where(self):
+    def template_where(self, params=None):
         """
         Generate a WHERE query.
         """
-        table = random.choice(self.tables)
-        column = random.choice(self.get_column_names(table))
-        value = random.choice(self.get_column_values(table, column))
+        table, column, value = None, None, None
+        if params == None:
+            table = random.choice(self.tables)
+            column = random.choice(self.get_column_names(table))
+            value = random.choice(self.get_column_values(table, column))
+        else:
+            table = params['table']
+            column = params['column']
+            value = params['value']
         query = f"SELECT * FROM `{table}` WHERE `{column}` = '{value}';"
-        return {"query": query, "message": "success"}
+        desc = f"Display those records of table '{table}' whose '{column}' is '{value}'"
+        return {"query": query, "desc": desc, "message": "success"}
 
-    def template_order_by(self):
+    def template_order_by(self, params=None):
         """
         Generate an ORDER BY query.
         """
-        table = random.choice(self.tables)
-        column = random.choice(self.get_column_names(table))
-        order = random.choice(self.order_options)
+        table, column, order = None, None, None
+        if params == None:
+            table = random.choice(self.tables)
+            column = random.choice(self.get_column_names(table))
+            order = random.choice(self.order_options)
+        else:
+            table = params['table']
+            column = params['column']
+            order = params['order']
         query = f"SELECT * FROM `{table}` ORDER BY `{column}` {order};"
-        return {"query": query, "message": "success"}
+        desc = f"Display the records of table '{table}',  the records are sorted by '{column}'"
+        return {"query": query, "desc": desc, "message": "success"}
 
     def template_group_by(self):
         """
@@ -477,25 +497,36 @@ class MySQLTemplate:
             print(f"Error fetching string columns for table {table}: {e}")
             return []  # Return an empty list on failure
 
-    def template_between(self, threshold=10):
+    def template_between(self, threshold=10, params=None):
         """
         Generate a BETWEEN query with enhanced logging and error handling.
         """
-        for _ in range(threshold):  # Retry up to 'threshold' times
-            table = random.choice(self.tables)
-            numeric_columns = self.get_column_num_names(table)
-            if numeric_columns:
-                column = random.choice(numeric_columns)
-                values = self.get_column_values(table, column)
-                if len(values) >= 2:
-                    try:
-                        start, end = sorted(random.sample(values, 2))
-                        query = f"SELECT * FROM `{table}` WHERE `{column}` BETWEEN {start} AND {end};"
-                        return {"query": query, "message": "success"}
-                    except Exception as e:
-                        print(f"Error sampling values: {e}")
-                        continue
-        return {"query": "", "message": "Unable to generate a valid BETWEEN query"}
+        if params == None:
+            for _ in range(threshold):  # Retry up to 'threshold' times
+                table = random.choice(self.tables)
+                numeric_columns = self.get_column_num_names(table)
+                if numeric_columns:
+                    column = random.choice(numeric_columns)
+                    values = self.get_column_values(table, column)
+                    if len(values) >= 2:
+                        try:
+                            start, end = sorted(random.sample(values, 2))
+                            query = f"SELECT * FROM `{table}` WHERE `{column}` BETWEEN {start} AND {end};"
+                            desc = f"Display rows of table '{table}' whose '{column}' ranges from {start} to {end}"
+                            return {"query": query, "desc": desc, "message": "success"}
+                        except Exception as e:
+                            print(f"Error sampling values: {e}")
+                            continue
+            return {"query": "", "message": "Unable to generate a valid BETWEEN query"}
+        else:
+            table = params['table']
+            column = params['column']
+            start = params['start']
+            end = params['end']
+            query = f"SELECT * FROM `{table}` WHERE `{column}` BETWEEN {start} AND {end};"
+            desc = f"Display rows of table '{table}' whose '{column}' ranges from {start} to {end}"
+            return {"query": query, "desc": desc, "message": "success"}
+
 
     def template_having(self, threshold=10):
         for _ in range(threshold):
