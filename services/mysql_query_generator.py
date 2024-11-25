@@ -428,8 +428,9 @@ class MySQLTemplate:
                 agg_column = random.choice(columns)
                 agg_func = random.choice(self.arithmetic_operations)
                 query = f"SELECT `{group_column}`, {agg_func}(`{agg_column}`) FROM `{table}` GROUP BY `{group_column}`;"
-                return {"query": query, "message": "success"}
-        return {"query": "", "result": [], "message": "Unable to generate GROUP BY query"}
+                desc = f"Display group by values of column '{group_column}' of the table '{table}' : "
+                return {"query": query, "desc": desc, "message": "success"}        
+                # return {"query": "", "result": [], "message": "Unable to generate GROUP BY query"}
 
     def template_join(self):
         """
@@ -445,8 +446,9 @@ class MySQLTemplate:
             f"ON `{foreign_key['table_name']}`.`{foreign_key['column_name']}` = "
             f"`{foreign_key['referenced_table']}`.`{foreign_key['referenced_column']}`;"
         )
-        return {"query": query, "message": "success"}
-
+        desc = f"Display '{join_type}' of tables '{foreign_key['table_name']}' and '{foreign_key['referenced_table']}' : "
+        return {"query": query, "desc": desc, "message": "success"}
+    
     def template_in(self):
         """
         Generate an IN query.
@@ -458,8 +460,9 @@ class MySQLTemplate:
             return {"query": "", "result": [], "message": "Not enough values for IN query"}
         value_list = ", ".join([f"'{v}'" for v in random.sample(values, min(len(values), 5))])
         query = f"SELECT * FROM `{table}` WHERE `{column}` IN ({value_list});"
-        return {"query": query, "message": "success"}
-
+        desc = f"Display values that are 'IN' '{table}' table and '{column}' column : "
+        return {"query": query, "desc": desc, "message": "success"}
+    
     def get_column_num_names(self, table):
         """
         Fetch numeric column names for the given table with enhanced error handling.
@@ -544,7 +547,8 @@ class MySQLTemplate:
                     continue
                 value = random.choice(values)
                 query = f"SELECT `{column_str}`, {arithm_op}(`{column_num}`) FROM `{table}` GROUP BY `{column_str}` HAVING {arithm_op}(`{column_num}`) {rel_op} {value};"
-                return {"query": query, "message": "success"}
+                desc = f"Display values that '{table}' table and '{column_str}' column 'HAVE' with the condition of '{arithm_op}' on '{column_num}' and '{rel_op}' on '{value}' : "
+                return {"query": query, "desc": desc, "message": "success"}
         return {"query": "", "message": "Unable to generate a HAVING query."}
 
     def execute_query(self, query):
