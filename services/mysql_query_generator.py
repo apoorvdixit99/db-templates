@@ -398,15 +398,22 @@ class MySQLTemplate:
         desc = f"Display those records of table '{table}' whose '{column}' is '{value}'"
         return {"query": query, "desc": desc, "message": "success"}
 
-    def template_order_by(self):
+    def template_order_by(self, params=None):
         """
         Generate an ORDER BY query.
         """
-        table = random.choice(self.tables)
-        column = random.choice(self.get_column_names(table))
-        order = random.choice(self.order_options)
+        table, column, order = None, None, None
+        if params == None:
+            table = random.choice(self.tables)
+            column = random.choice(self.get_column_names(table))
+            order = random.choice(self.order_options)
+        else:
+            table = params['table']
+            column = params['column']
+            order = params['order']
         query = f"SELECT * FROM `{table}` ORDER BY `{column}` {order};"
-        return {"query": query, "message": "success"}
+        desc = f"Display the records of table '{table}',  the records are sorted by '{column}'"
+        return {"query": query, "desc": desc, "message": "success"}
 
     def template_group_by(self):
         """
