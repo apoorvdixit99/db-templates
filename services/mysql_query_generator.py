@@ -291,7 +291,7 @@ class MySQLTemplate:
         self.connection = mysql.connector.connect(
             host="localhost",  # Replace with your MySQL host
             user="root",       # Replace with your MySQL username
-            password="password123",  # Replace with your MySQL password
+            password="mysql",  # Replace with your MySQL password
             database=db_name
         )
         self.db_name = db_name
@@ -353,13 +353,18 @@ class MySQLTemplate:
 
     # Query Templates
 
-    def template_select(self, limit=5):
+    def template_select(self, limit=5, params=None):
         """
         Generate a simple SELECT query.
         """
-        table = random.choice(self.tables)
+        table = None
+        if params == None:
+            table = random.choice(self.tables)
+        else:
+            table = params['table']
         query = f"SELECT * FROM `{table}` LIMIT {limit};"
-        return {"query": query, "message": "success"}
+        desc = f"Display the table {table}"
+        return {"query": query, "desc": desc, "message": "success"}
 
     def template_distinct(self):
         """
