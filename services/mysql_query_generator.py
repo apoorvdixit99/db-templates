@@ -363,17 +363,23 @@ class MySQLTemplate:
         else:
             table = params['table']
         query = f"SELECT * FROM `{table}` LIMIT {limit};"
-        desc = f"Display the table {table}"
+        desc = f"Display rows of table '{table}'"
         return {"query": query, "desc": desc, "message": "success"}
 
-    def template_distinct(self):
+    def template_distinct(self, params=None):
         """
         Generate a DISTINCT query.
         """
-        table = random.choice(self.tables)
-        column = random.choice(self.get_column_names(table))
+        table, column = None, None
+        if params == None:
+            table = random.choice(self.tables)
+            column = random.choice(self.get_column_names(table))
+        else:
+            table = params['table']
+            column = params['column']
         query = f"SELECT DISTINCT `{column}` FROM `{table}`;"
-        return {"query": query, "message": "success"}
+        desc = f"Display distinct values of column '{column}' the table '{table}'"
+        return {"query": query, "desc": desc, "message": "success"}
 
     def template_where(self):
         """
