@@ -40,27 +40,36 @@ def ask_question():
                 "having": mysql_template.template_having,
             }
 
-            # Check for vague inputs
-            if "example sql" in user_message.lower() or "random queries" in user_message.lower():
+            # Check if the user's input starts with "example sql" or "random queries"
+            user_message_lower = user_message.lower()
+            if user_message_lower.startswith("example sql") or user_message_lower.startswith("random queries"):
                 random_queries = generate_random_queries(mysql_template, count=5)
                 return jsonify({"queries": random_queries, "message": "success"}), 200
 
-            # Find a specific template based on the user's message
-            selected_template = None
-            for keyword, template_func in template_map.items():
-                if keyword in user_message.lower():
-                    selected_template = template_func
-                    break
+            # Check if the user's input starts with "example"
+            elif user_message_lower.startswith("example"):
+                # Find a specific template based on the user's message
+                selected_template = None
+                for keyword, template_func in template_map.items():
+                    if keyword in user_message_lower:
+                        selected_template = template_func
+                        break
 
-            if not selected_template:
-                return jsonify({"error": "Query type not identified"}), 400
+                if not selected_template:
+                    return jsonify({"error": "Query type not identified"}), 400
 
-            response = selected_template()
-            return jsonify({"query": response["query"], "message": "success"}), 200
+                response = selected_template()
+                return jsonify({"query_str": response["query"], "message": "success"}), 200
+
+            # Otherwise, call the natural_language function
+            else:
+                response = mysql_template.natural_lang_query(user_message)
+                return jsonify({"query_str": response["query"], "desc": response["desc"], "message": "success"}), 200
 
         except Exception as e:
             print(f"Error generating MySQL query: {e}")
             return jsonify({"error": f"Failed to generate MySQL query: {str(e)}"}), 500
+
 
     elif db_type.lower() == "mongodb":
         try:
@@ -130,13 +139,13 @@ def ask_question():
                     return jsonify({"error": "Field or value not identified for math operations"}), 400
 
                 # Extract the last word in the value and convert to integer
-                try:
-                    extracted_value = int(value.split()[-1])  # Extract the last word and convert to integer
-                except ValueError:
-                    return jsonify({"error": f"Invalid value for math operation: '{value}'"}), 400
+                # try:
+                #     extracted_value = int(value.split()[-1])  # Extract the last word and convert to integer
+                # except ValueError:
+                #     return jsonify({"error": f"Invalid value for math operation: '{value}'"}), 400
 
                 # Build query_params for math operations
-                query_params = {field: {extraction_result["mongo_operator"]: extracted_value}}
+                query_params = {field: {extraction_result["mongo_operator"]: value}}
 
                 # Call the math operations template
                 response = template_map[identified_template](
@@ -266,13 +275,81 @@ mongodb_template_mapping = {
 #     }
 
 #2
+# def identify_template_and_extract(user_input, known_collections, known_fields):
+#     """
+#     Identify the MongoDB template, collection name, field, and value from user input.
+#     """
+#     # Identify the template based on user input
+#     identified_template = None
+
+#     for template, keywords in mongodb_template_mapping.items():
+#         for keyword in keywords:
+#             if keyword in user_input.lower():
+#                 identified_template = template
+#                 break
+#         if identified_template:
+#             break
+
+#     if not identified_template:
+#         return {"error": "Template not identified"}
+
+#     # Extract collection name using known collections
+#     collection_name = None
+#     for collection in known_collections:
+#         collection_pattern = rf"\b{collection}\b"
+#         if re.search(collection_pattern, user_input, re.IGNORECASE):
+#             collection_name = collection
+#             break
+
+#     # Extract field, operator, and value using known fields
+#     field = None
+#     operator = None
+#     value = None
+#     for known_field in known_fields:
+#         field_pattern = rf"\b{known_field}\b"  # Match the field name as a whole word
+#         if re.search(field_pattern, user_input, re.IGNORECASE):
+#             field = known_field  # Field is found
+
+#             # Look for math operations or textual conditions
+#             value_pattern = rf"{known_field}.*?(is|are|serving|of|with)?\s+(['\"]?[a-zA-Z0-9\s]+['\"]?)"
+#             match = re.search(value_pattern, user_input, re.IGNORECASE)
+#             if match:
+#                 operator = match.group(1).strip().lower() if match.group(1) else None  # Extract the operator
+#                 value = match.group(2).strip().strip('"').strip("'")  # Extract and clean value
+#             break
+
+#     # Map operator to MongoDB query operator (for math operations)
+#     mongo_operator_map = {
+#         "greater than": "$gt",
+#         "more than": "$gt",
+#         "less than": "$lt",
+#         "fewer than": "$lt",
+#         "is": "$eq",
+#         "are": "$eq",
+#     }
+#     mongo_operator = mongo_operator_map.get(operator, "$eq")  # Default to "$eq" if no operator
+
+#     # Prepare query condition for math operations
+#     query_condition = {field: {mongo_operator: value}} if field and value else {}
+
+#     return {
+#         "template": identified_template,
+#         "collection": collection_name,
+#         "field": field,
+#         "value": value,
+#         "operator": operator,
+#         "mongo_operator": mongo_operator,
+#         "query_condition": query_condition,
+#     }
+
 def identify_template_and_extract(user_input, known_collections, known_fields):
     """
     Identify the MongoDB template, collection name, field, and value from user input.
     """
+    import re
+
     # Identify the template based on user input
     identified_template = None
-
     for template, keywords in mongodb_template_mapping.items():
         for keyword in keywords:
             if keyword in user_input.lower():
@@ -302,12 +379,21 @@ def identify_template_and_extract(user_input, known_collections, known_fields):
             field = known_field  # Field is found
 
             # Look for math operations or textual conditions
-            value_pattern = rf"{known_field}.*?(is|are|serving|of|with)?\s+(['\"]?[a-zA-Z0-9\s]+['\"]?)"
+            value_pattern = rf"{known_field}.*?(is|are|serving|of|with|more than|less than|greater than|fewer than)?\s+([\"']?\d+[\"']?)"
             match = re.search(value_pattern, user_input, re.IGNORECASE)
             if match:
                 operator = match.group(1).strip().lower() if match.group(1) else None  # Extract the operator
-                value = match.group(2).strip().strip('"').strip("'")  # Extract and clean value
+                value = int(match.group(2).strip().strip('"').strip("'"))  # Extract and clean value
             break
+
+    # Handle unmatched fields but with numerical conditions
+    if not field:
+        number_match = re.search(r"(more than|greater than|less than|fewer than)\s+(\d+)", user_input, re.IGNORECASE)
+        if number_match:
+            operator = number_match.group(1).strip().lower()
+            value = int(number_match.group(2).strip())
+            # Assume a field if the collection implies it (optional, e.g., "accommodates")
+            field = "accommodates" if collection_name == "listingsAndReviews" else None
 
     # Map operator to MongoDB query operator (for math operations)
     mongo_operator_map = {
@@ -318,10 +404,13 @@ def identify_template_and_extract(user_input, known_collections, known_fields):
         "is": "$eq",
         "are": "$eq",
     }
-    mongo_operator = mongo_operator_map.get(operator, "$eq")  # Default to "$eq" if no operator
+    mongo_operator = mongo_operator_map.get(operator, "$eq")  # Default to "$eq" if no operator is found
 
     # Prepare query condition for math operations
-    query_condition = {field: {mongo_operator: value}} if field and value else {}
+    query_condition = {field: {mongo_operator: value}} if field and value is not None else {}
+
+    if not collection_name or not field:
+        return {"error": "Could not extract collection or field information"}
 
     return {
         "template": identified_template,
@@ -332,6 +421,7 @@ def identify_template_and_extract(user_input, known_collections, known_fields):
         "mongo_operator": mongo_operator,
         "query_condition": query_condition,
     }
+
 
 
 def generate_random_queries(template, count=5):

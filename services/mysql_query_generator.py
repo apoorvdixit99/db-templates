@@ -282,6 +282,7 @@
 
 import mysql.connector
 import random
+import re
 
 class MySQLTemplate:
     def __init__(self, db_name):
@@ -588,3 +589,84 @@ class MySQLTemplate:
             }
             for row in self.cursor.fetchall()
         ]
+
+    def natural_lang_query(self, input):
+        tokens = input.split(" ")
+        if "select" in tokens:
+            tables = self.get_tables()
+            for table in tables:
+                if table in tokens:
+                    params = {
+                        "table": table
+                    }
+                    result = self.template_select(params=params)
+                    return result
+                    print(result)
+                    break
+        elif "distinct" in tokens:
+            tables = self.get_tables()
+            for table in tables:
+                if table in tokens:
+                    columns = self.get_column_names(table)
+                    for column in columns:
+                        if column in tokens:
+                            params = {
+                                "table": table,
+                                "column": column
+                            }
+                            result = self.template_distinct(params=params)
+                            print(result)
+                            return result
+                            break
+        elif "ranges" in tokens or "range" in tokens or "between" in tokens:
+            tables = self.get_tables()
+            for table in tables:
+                if table in tokens:
+                    columns = self.get_column_names(table)
+                    for column in columns:
+                        if column in tokens:
+                            matches = re.findall(r'\d+', input)
+                            start, end = matches
+                            params = {
+                                "table": table,
+                                "column": column,
+                                "start": start,
+                                "end": end
+                            }
+                            result = self.template_between(params=params)
+                            print(result)
+                            return result
+                            break
+        elif "where" in tokens or "whose" in tokens:
+            tables = self.get_tables()
+            for table in tables:
+                if table in tokens:
+                    columns = self.get_column_names(table)
+                    for column in columns:
+                        if column in tokens:
+                            value = tokens[-1]
+                            params = {
+                                "table": table,
+                                "column": column,
+                                "value": value
+                            }
+                            result = self.template_where(params=params)
+                            print(result)
+                            return result
+                            break
+        elif "order" in tokens:
+            tables = self.get_tables()
+            for table in tables:
+                if table in tokens:
+                    columns = self.get_column_names(table)
+                    for column in columns:
+                        if column in tokens:
+                            params = {
+                                "table": table,
+                                "column": column,
+                                "order": "ASC"
+                            }
+                            result = self.template_order_by(params=params)
+                            print(result)
+                            return result
+                            break

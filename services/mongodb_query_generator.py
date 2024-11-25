@@ -120,26 +120,6 @@ class MongoDBTemplate:
         query_str = f"db.{collection}.aggregate({json.dumps(pipeline)})"
         return {"query_str": query_str, "message": "success"}
 
-    # def execute_query(self, query):
-    #     """
-    #     Execute a MongoDB query and return the result.
-    #     """
-    #     try:
-    #         collection = self.db[query["collection"]]
-    #         if query["query_type"] == "find":
-    #             # Apply transformation to handle ObjectId
-    #             documents = collection.find(query.get("query_params", {}), query.get("query_projection", {})).limit(10)
-    #             return [self.transform_document(doc) for doc in documents]
-    #         elif query["query_type"] == "insertOne":
-    #             return collection.insert_one(query["query_params"]).inserted_id
-    #         elif query["query_type"] == "insertMany":
-    #             return collection.insert_many(query["query_params"]).inserted_ids
-    #         else:
-    #             return "Query type not supported"
-    #     except Exception as e:
-    #         print(f"Error executing query: {e}")
-    #         return {"error": str(e)}
-
     def execute_query(self, query):
         """
         Execute a MongoDB query and return the result.
