@@ -365,7 +365,7 @@ class MySQLTemplate:
             table = params['table']
         query = f"SELECT * FROM `{table}` LIMIT {limit};"
         desc = f"Display rows of table '{table}'"
-        return {"query": query, "desc": desc, "message": "success"}
+        return {"query_str": query, "desc": desc, "message": "success"}
 
     def template_distinct(self, params=None):
         """
@@ -380,7 +380,7 @@ class MySQLTemplate:
             column = params['column']
         query = f"SELECT DISTINCT `{column}` FROM `{table}`;"
         desc = f"Display distinct values of column '{column}' the table '{table}'"
-        return {"query": query, "desc": desc, "message": "success"}
+        return {"query_str": query, "desc": desc, "message": "success"}
 
     def template_where(self, params=None):
         """
@@ -397,7 +397,7 @@ class MySQLTemplate:
             value = params['value']
         query = f"SELECT * FROM `{table}` WHERE `{column}` = '{value}';"
         desc = f"Display those records of table '{table}' whose '{column}' is '{value}'"
-        return {"query": query, "desc": desc, "message": "success"}
+        return {"query_str": query, "desc": desc, "message": "success"}
 
     def template_order_by(self, params=None):
         """
@@ -414,7 +414,7 @@ class MySQLTemplate:
             order = params['order']
         query = f"SELECT * FROM `{table}` ORDER BY `{column}` {order};"
         desc = f"Display the records of table '{table}',  the records are sorted by '{column}'"
-        return {"query": query, "desc": desc, "message": "success"}
+        return {"query_str": query, "desc": desc, "message": "success"}
 
     def template_group_by(self):
         """
@@ -429,7 +429,7 @@ class MySQLTemplate:
                 agg_func = random.choice(self.arithmetic_operations)
                 query = f"SELECT `{group_column}`, {agg_func}(`{agg_column}`) FROM `{table}` GROUP BY `{group_column}`;"
                 desc = f"Display group by values of column '{group_column}' of the table '{table}' : "
-                return {"query": query, "desc": desc, "message": "success"}        
+                return {"query_str": query, "desc": desc, "message": "success"}        
                 # return {"query": "", "result": [], "message": "Unable to generate GROUP BY query"}
 
     def template_join(self):
@@ -437,7 +437,7 @@ class MySQLTemplate:
         Generate a JOIN query.
         """
         if not self.foreign_keys:
-            return {"query": "", "result": [], "message": "No foreign keys available for JOIN query"}
+            return {"query_str": "", "result": [], "message": "No foreign keys available for JOIN query"}
 
         foreign_key = random.choice(self.foreign_keys)
         join_type = random.choice(self.join_options)
@@ -447,7 +447,7 @@ class MySQLTemplate:
             f"`{foreign_key['referenced_table']}`.`{foreign_key['referenced_column']}`;"
         )
         desc = f"Display '{join_type}' of tables '{foreign_key['table_name']}' and '{foreign_key['referenced_table']}' : "
-        return {"query": query, "desc": desc, "message": "success"}
+        return {"query_str": query, "desc": desc, "message": "success"}
     
     def template_in(self):
         """
@@ -457,11 +457,11 @@ class MySQLTemplate:
         column = random.choice(self.get_column_names(table))
         values = self.get_column_values(table, column)
         if len(values) < 2:
-            return {"query": "", "result": [], "message": "Not enough values for IN query"}
+            return {"query_str": "", "result": [], "message": "Not enough values for IN query"}
         value_list = ", ".join([f"'{v}'" for v in random.sample(values, min(len(values), 5))])
         query = f"SELECT * FROM `{table}` WHERE `{column}` IN ({value_list});"
         desc = f"Display values that are 'IN' '{table}' table and '{column}' column : "
-        return {"query": query, "desc": desc, "message": "success"}
+        return {"query_str": query, "desc": desc, "message": "success"}
     
     def get_column_num_names(self, table):
         """
@@ -516,20 +516,22 @@ class MySQLTemplate:
                         try:
                             start, end = sorted(random.sample(values, 2))
                             query = f"SELECT * FROM `{table}` WHERE `{column}` BETWEEN {start} AND {end};"
-                            desc = f"Display rows of table '{table}' whose '{column}' ranges from {start} to {end}"
-                            return {"query": query, "desc": desc, "message": "success"}
+                            print('query', query)
+                            desc = f"Display rows of table '{table}' whose '{column}' ranges from '{str(start)}' to '{str(end)}'"
+                            print('desc', desc)
+                            return {"query_str": query, "desc": desc, "message": "success"}
                         except Exception as e:
                             print(f"Error sampling values: {e}")
                             continue
-            return {"query": "", "message": "Unable to generate a valid BETWEEN query"}
+            return {"query_str": "", "message": "Unable to generate a valid BETWEEN query"}
         else:
             table = params['table']
             column = params['column']
             start = params['start']
             end = params['end']
             query = f"SELECT * FROM `{table}` WHERE `{column}` BETWEEN {start} AND {end};"
-            desc = f"Display rows of table '{table}' whose '{column}' ranges from {start} to {end}"
-            return {"query": query, "desc": desc, "message": "success"}
+            desc = f"Display rows of table '{table}' whose '{column}' ranges from '{str(start)}' to '{str(end)}'"
+            return {"query_str": query, "desc": desc, "message": "success"}
 
 
     def template_having(self, threshold=10):
@@ -548,8 +550,8 @@ class MySQLTemplate:
                 value = random.choice(values)
                 query = f"SELECT `{column_str}`, {arithm_op}(`{column_num}`) FROM `{table}` GROUP BY `{column_str}` HAVING {arithm_op}(`{column_num}`) {rel_op} {value};"
                 desc = f"Display values that '{table}' table and '{column_str}' column 'HAVE' with the condition of '{arithm_op}' on '{column_num}' and '{rel_op}' on '{value}' : "
-                return {"query": query, "desc": desc, "message": "success"}
-        return {"query": "", "message": "Unable to generate a HAVING query."}
+                return {"query_str": query, "desc": desc, "message": "success"}
+        return {"query_str": "", "message": "Unable to generate a HAVING query."}
 
     def execute_query(self, query):
         """

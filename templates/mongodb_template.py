@@ -3,6 +3,7 @@ from pymongo.server_api import ServerApi
 import random
 from config.mongo_config import MONGO_URI
 import json
+import re
 
 USER = 'root'
 PASSWORD = 'mongodb'
@@ -69,6 +70,7 @@ class MongoDBTemplate:
     #     return result
 
     def execute_query(self, query):
+
         collection_name = query['collection']
         collection = self.db[collection_name]
 
@@ -96,9 +98,12 @@ class MongoDBTemplate:
             if query['query_type'] == "find":
                 # Convert cursor to list for JSON serialization
                 return list(result)
-            elif query['query_type'] in ["insertOne", "insertMany"]:
+            elif query['query_type'] == "insertOne":
                 # Return insert acknowledgment as string
                 return {"acknowledged": result.acknowledged, "inserted_ids": getattr(result, "inserted_ids", [result.inserted_id])}
+            elif query['query_type'] == "insertMany":
+                # Return insert acknowledgment as string
+                return {"acknowledged": result}
             else:
                 raise ValueError("Unsupported query type")
 
@@ -122,17 +127,25 @@ class MongoDBTemplate:
 
     # Templates
 
-    def template_insert_one(self):
-        document = self.generate_sample_document()
-        collection = random.choice(self.collections)
-        doc_str = json.dumps(document)
+    def template_insert_one(self, params=None):
+        collection, document, doc_str = None, None, None
+        if params == None:
+            collection = random.choice(self.collections)
+            document = self.generate_sample_document()
+            doc_str = json.dumps(document)
+        else:
+            collection = params['collection']
+            doc_str = params['doc_str']
+            document = json.loads(doc_str)
         query_type = 'insertOne'
         query_str = f"""db.{collection}.{query_type}({doc_str})"""
+        query_desc = f"""Inserted one document: '{document}' in '{collection}' collection : """
         return {
             'query_type': query_type,
             'query_params': document,
             'collection': collection,
-            'query_str': query_str
+            'query_str': query_str,
+            'query_desc': query_desc
         }
 
     def template_insert_many(self):
@@ -141,195 +154,83 @@ class MongoDBTemplate:
         doc_str = json.dumps(documents)
         query_type = 'insertMany'
         query_str = f"""db.{collection}.{query_type}({doc_str})"""
+        query_desc = f"""Inserted multiple documents: '{doc_str}' in '{collection}' collection : """
         return {
             'query_type': query_type,
             'query_params': documents,
             'collection': collection,
-            'query_str': query_str
+            'query_str': query_str,
+            'query_desc': query_desc
         }
     
-    # def template_find_math_operations(self):
-    #     collection = random.choice(self.collections)
-    #     query_type = 'find'
-
-    #     attributes = self.get_attribute_types(collection)
-    #     int_attributes = [key for key, value in attributes.items() if value == 'int']
-    #     attr = random.choice(int_attributes)
-    #     unique_values = self.db[collection].distinct(attr)
-    #     unique_values = list(unique_values)
-    #     value = random.choice(unique_values)
-    #     op = random.choice(self.math_operations)
-
-    #     query_params = {
-    #         attr: {
-    #             op: value
-    #         }
-    #     }
-    #     if op=='$ne':
-    #         query_params[attr]['$exists'] = True
-    #     query_projection = {
-    #         attr: 1,
-    #         '_id': 1
-    #     }
-    #     query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
-    #     return {
-    #         'query_type': query_type,
-    #         'query_params': query_params,
-    #         'collection': collection,
-    #         'query_str': query_str,
-    #         'query_projection': query_projection
-    #     }
-
     def template_find_math_operations(self, collection=None, query_params=None):
-        """
-        Generate a MongoDB find query with math operations.
-        If query_params are provided, use them; otherwise, generate random parameters.
-        """
-        # If no collection is provided, choose a random one
-        collection = collection or random.choice(self.collections)
+        collection = random.choice(self.collections)
         query_type = 'find'
+        print("Hi")
 
-        if query_params:
-            # Use provided query_params directly
-            query_projection = {key: 1 for key in query_params.keys()}
-            query_projection['_id'] = 1
-            query_str = f"""db.{collection}.{query_type}({json.dumps(query_params)}, {json.dumps(query_projection)})"""
-            return {
-                'query_type': query_type,
-                'query_params': query_params,
-                'collection': collection,
-                'query_str': query_str,
-                'query_projection': query_projection
-            }
-
-        # If no query_params are provided, generate random parameters
-        attributes = self.get_attribute_types(collection)  # Get attribute types for the collection
-        int_attributes = [key for key, value in attributes.items() if value == 'int']  # Filter integer attributes
-
-        if not int_attributes:
-            return {
-                'query_type': query_type,
-                'query_params': {},
-                'collection': collection,
-                'query_str': "",
-                'query_projection': {},
-                'message': "No integer attributes available for math operations"
-            }
-
-        attr = random.choice(int_attributes)  # Choose a random integer attribute
-        unique_values = self.db[collection].distinct(attr)  # Get distinct values for the attribute
-        unique_values = [val for val in unique_values if isinstance(val, (int, float))]  # Ensure values are numeric
-
-        if not unique_values:
-            return {
-                'query_type': query_type,
-                'query_params': {},
-                'collection': collection,
-                'query_str': "",
-                'query_projection': {},
-                'message': "No numeric values available for math operations"
-            }
-
+        attributes = self.get_attribute_types(collection)
+        int_attributes = [key for key, value in attributes.items() if value == 'int']
+        print(int_attributes)
+        attr = random.choice(int_attributes)
+        unique_values = self.db[collection].distinct(attr)
+        unique_values = list(unique_values)
         value = random.choice(unique_values)
-        op = random.choice(self.math_operations)  # Choose a random operation (e.g., $gt, $lt, $ne)
-
-        # Construct query parameters
+        op = random.choice(self.math_operations)
+        print("Hi2")
         query_params = {
             attr: {
                 op: value
             }
         }
-        if op == '$ne':
+        math_op_str = {
+            #['$gte', '$gt', '$lte', '$lt', '$eq', '$ne']
+            '$gte': 'greater than or equal to',
+            '$gt': 'greater than',
+            '$lte': 'less than or equal to',
+            '$lt': 'less than',
+            '$eq': 'equal to',
+            '$ne': 'not equal to',
+        }
+        query_params_desc = str(attr)+' '+math_op_str[op]+' '+str(value)
+        print("Hi3")
+        if op=='$ne':
             query_params[attr]['$exists'] = True
-
         query_projection = {
             attr: 1,
             '_id': 1
         }
-        query_str = f"""db.{collection}.{query_type}({json.dumps(query_params)}, {json.dumps(query_projection)})"""
+        print("Hi4")
+        query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
+        query_desc = f"""Found results of math operation {query_params_desc} on '{collection}' collection """            
 
         return {
             'query_type': query_type,
             'query_params': query_params,
             'collection': collection,
             'query_str': query_str,
-            'query_projection': query_projection
+            'query_projection': query_projection,
+            'query_desc': query_desc
         }
 
     
-    def template_find(self):
-        collection = random.choice(self.collections)
+    def template_find(self, params=None):
+        collection = None
+        if params == None:
+            collection = random.choice(self.collections)
+        else:
+            collection = params['collection']
         query_type = 'find'
         query_params = ""
         query_str = f"""db.{collection}.{query_type}({query_params})"""
+        query_desc = f"""Found the entries in '{collection}' collection : """
         return {
             'query_type': query_type,
             'query_params': query_params,
             'collection': collection,
-            'query_str': query_str
+            'query_str': query_str,
+            'query_desc': query_desc,
+            'message': "success"
         }
-    
-    # def template_find_with_projection(self):
-    #     """Generate a MongoDB find query with random projection fields."""
-    #     collection = random.choice(self.collections)  # Select a random collection
-    #     fields = self.get_collection_fields(collection)  # Retrieve fields for the collection
-        
-    #     if not fields:
-    #         print(fields + " - No fields available for projection")  # Debugging message
-    #         return {
-    #             'query_type': "find",
-    #             'query_params': {},
-    #             'collection': collection,
-    #             'query_str': "",
-    #             'query_projection': {}
-    #         }
-
-    #     # Generate a random projection with up to 3 fields
-    #     projection = {field: 1 for field in random.sample(fields, min(len(fields), 3))}
-        
-    #     # Construct the query string
-    #     query_str = f"db.{collection}.find({{}}, {json.dumps(projection)})"
-    #     print("HERE!!!")
-    #     # Return the correctly formatted response
-    #     return {
-    #         'query_type': "find",
-    #         'query_params': {},  # No filter conditions specified in this template
-    #         'collection': collection,
-    #         'query_str': query_str,
-    #         'query_projection': projection
-    #     }
-
-    # def template_find_with_projection(self, collection=None, field=None, value=None):
-    #     """Generate a MongoDB find query with random projection fields."""
-    #     if not collection:
-    #         collection = random.choice(self.collections)  # Default to a random collection
-
-    #     fields = self.get_collection_fields(collection)  # Retrieve fields for the collection
-
-    #     if not fields:
-    #         return {
-    #             'query_type': "find",
-    #             'query_params': {},
-    #             'collection': collection,
-    #             'query_str': "",
-    #             'query_projection': {},
-    #             'message': "No fields available for projection"
-    #         }
-
-    #     # Generate a random projection with up to 3 fields
-    #     projection = {field: 1 for field in random.sample(fields, min(len(fields), 3))}
-        
-    #     # Construct the query string
-    #     query_str = f"db.{collection}.find({{}}, {json.dumps(projection)})"
-
-    #     return {
-    #         'query_type': "find",
-    #         'query_params': {},  # No filter conditions specified in this template
-    #         'collection': collection,
-    #         'query_str': query_str,
-    #         'query_projection': projection,
-    #         'message': "success"
-    #     }
 
     def template_find_with_projection(self, collection=None, field=None, value=None):
         """Generate a MongoDB find query with random projection fields and optional filter."""
@@ -357,12 +258,15 @@ class MongoDBTemplate:
         # Construct the query string
         query_str = f"db.{collection}.find({json.dumps(query_params)}, {json.dumps(projection)})"
 
+        query_desc = f"""Found results with conditions: '{query_params}' on '{collection}' collection : """
+
         return {
             'query_type': "find",
             'query_params': query_params,
             'collection': collection,
             'query_str': query_str,
             'query_projection': projection,
+            'query_desc': query_desc,
             'message': "success"
         }
 
@@ -407,29 +311,39 @@ class MongoDBTemplate:
             '_id': 1
         }
         query_str = f"""db.{collection}.{query_type}({query_params_str},{query_projection})"""
+        query_desc = f"""Display '{query_type}' results where '{attr}' attribute contains the word '{value}' : """
         return {
             'query_type': query_type,
             'query_params': query_params,
             'collection': collection,
             'query_str': query_str,
-            'query_projection': query_projection
+            'query_projection': query_projection,
+            'query_desc': query_desc
         }
     
-    def template_find_regex_2(self):
-        collection = random.choice(self.collections)
+    def template_find_regex_2(self, params=None):
         query_type = 'find'
-
-        attributes = self.get_attribute_types(collection)
-        str_attributes = [key for key, value in attributes.items() if value == 'str']
-        attr = random.choice(str_attributes)
-        unique_values = self.db[collection].distinct(attr)
-        unique_values = list(unique_values)
-        value = random.choice(unique_values)
-        value = value.split(' ')
-        starts_with = random.choice([0,1])
+        if params== None:
+            collection = random.choice(self.collections)
+            attributes = self.get_attribute_types(collection)
+            str_attributes = [key for key, value in attributes.items() if value == 'str']
+            attr = random.choice(str_attributes)
+            unique_values = self.db[collection].distinct(attr)
+            unique_values = list(unique_values)
+            value = random.choice(unique_values)
+            value = value.split(' ')
+            starts_with = random.choice([0,1])
+            if starts_with == 1:
+                value = value[0]
+            else:
+                value = value[-1]
+        else:
+            collection = params['collection']
+            attr = params['attr']
+            value = params['value']
+            starts_with = params['starts_with']
 
         if starts_with == 1:
-            value = value[0]
             query_params = {
                 attr: {
                     "$regex": f"^{value}"
@@ -439,7 +353,6 @@ class MongoDBTemplate:
                 attr: f'/^{value}/'
             }
         else:
-            value = value[-1]
             query_params = {
                 attr: {
                     "$regex": f"{value}$"
@@ -453,24 +366,35 @@ class MongoDBTemplate:
             '_id': 1
         }
         query_str = f"""db.{collection}.{query_type}({query_params_str},{query_projection})"""
+        if starts_with == 1:
+            query_desc = f"""Display '{query_type}' results where value of '{attr}' starts with the word '{value}' : """
+        else:
+            query_desc = f"""Display '{query_type}' results where value of '{attr}' ends with the word '{value}' : """
+
         return {
             'query_type': query_type,
             'query_params': query_params,
             'collection': collection,
             'query_str': query_str,
-            'query_projection': query_projection
+            'query_projection': query_projection,
+            'query_desc': query_desc
         }
     
-    def template_find_and(self):
-        collection = random.choice(self.collections)
+    def template_find_and(self, params=None):
         query_type = 'find'
-
-        attributes = self.get_attribute_types(collection)
-        int_attributes = [key for key, value in attributes.items() if value == 'int']
-        attr = random.choice(int_attributes)
-        unique_values = self.db[collection].distinct(attr)
-        unique_values = list(unique_values)
-        value1, value2 = sorted(random.sample(unique_values, 2))
+        if params == None:
+            collection = random.choice(self.collections)
+            attributes = self.get_attribute_types(collection)
+            int_attributes = [key for key, value in attributes.items() if value == 'int']
+            attr = random.choice(int_attributes)
+            unique_values = self.db[collection].distinct(attr)
+            unique_values = list(unique_values)
+            value1, value2 = sorted(random.sample(unique_values, 2))
+        else:
+            collection = params['collection']
+            attr = params['attr']
+            value1 = params['value1']
+            value2 = params['value2']
 
         query_params = {
             "$and": [
@@ -492,24 +416,32 @@ class MongoDBTemplate:
             '_id': 1
         }
         query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
+        query_desc = f"""Display '{query_type}' results where value of '{attr}' greater than equal to '{value1}' AND less than equal to '{value2}' : """
+
         return {
             'query_type': query_type,
             'query_params': query_params,
             'collection': collection,
             'query_str': query_str,
-            'query_projection': query_projection
+            'query_projection': query_projection,
+            'query_desc': query_desc
         }
     
-    def template_find_or(self):
-        collection = random.choice(self.collections)
+    def template_find_or(self, params=None):
         query_type = 'find'
-
-        attributes = self.get_attribute_types(collection)
-        int_attributes = [key for key, value in attributes.items() if value == 'int']
-        attr = random.choice(int_attributes)
-        unique_values = self.db[collection].distinct(attr)
-        unique_values = list(unique_values)
-        value1, value2 = sorted(random.sample(unique_values, 2))
+        if params == None:
+            collection = random.choice(self.collections)
+            attributes = self.get_attribute_types(collection)
+            int_attributes = [key for key, value in attributes.items() if value == 'int']
+            attr = random.choice(int_attributes)
+            unique_values = self.db[collection].distinct(attr)
+            unique_values = list(unique_values)
+            value1, value2 = sorted(random.sample(unique_values, 2))
+        else:
+            collection = params['collection']
+            attr = params['attr']
+            value1 = params['value1']
+            value2 = params['value2']
 
         query_params = {
             "$or": [
@@ -531,12 +463,15 @@ class MongoDBTemplate:
             '_id': 1
         }
         query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
+        query_desc = f"""Display '{query_type}' results where value of '{attr}' equal to '{value1}' OR '{value2}' : """
+
         return {
             'query_type': query_type,
             'query_params': query_params,
             'collection': collection,
             'query_str': query_str,
-            'query_projection': query_projection
+            'query_projection': query_projection,
+            'query_desc': query_desc
         }
 
     def template_find_nested_attribute(self):
@@ -560,12 +495,15 @@ class MongoDBTemplate:
             '_id': 1
         }
         query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
+        query_desc = f"""Display '{query_type}' results where value of '{attr}' with key as '{nested_key}' is '{nested_value}' : """
+
         return {
             'query_type': query_type,
             'query_params': query_params,
             'collection': collection,
             'query_str': query_str,
-            'query_projection': query_projection
+            'query_projection': query_projection,
+            'query_desc': query_desc
         }
 
     def template_find_array_all(self):
@@ -601,12 +539,14 @@ class MongoDBTemplate:
             '_id': 1
         }
         query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
+        query_desc = f"""Displays all the values of '{attr}' that are in '{values_subset}' : """
         return {
             'query_type': query_type,
             'query_params': query_params,
             'collection': collection,
             'query_str': query_str,
-            'query_projection': query_projection
+            'query_projection': query_projection,
+            'query_desc': query_desc
         }
 
     def template_find_array_in(self):
@@ -642,92 +582,113 @@ class MongoDBTemplate:
             '_id': 1
         }
         query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
+        query_desc = f"""Displays the values of '{attr}' that are in '{values_subset}' : """
+
         return {
             'query_type': query_type,
             'query_params': query_params,
             'collection': collection,
             'query_str': query_str,
-            'query_projection': query_projection
+            'query_projection': query_projection,
+            'query_desc': query_desc
         }
 
-    # def template_find_elemmatch(self):
-    #     collection = random.choice(self.collections)
-    #     query_type = 'find'
-    #     attributes = self.get_attribute_types(collection)
-    #     dict_attributes = [key for key, value in attributes.items() if value == 'dict']
-    #     attr = random.choice(dict_attributes)
-    #     unique_values = self.db[collection].distinct(attr)
-    #     unique_values = list(unique_values)
-    #     value = random.choice(unique_values)
-    #     print(value)
-    #     nested_key1, nested_key2 = random.sample(list(value.keys()), 2)
-    #     nested_value1, nested_value2 = value[nested_key1], value[nested_key2]
-    #     query_params = {
-    #         attr: {
-    #             "$elemMatch": {
-    #                 nested_key1: nested_value1,
-    #                 nested_key2: nested_value2
-    #             }
-    #         }
-    #     }
-    #     query_projection = {
-    #         attr: 1,
-    #         '_id': 1
-    #     }
-    #     query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
-    #     docs = self.db[collection].find(
-    #         {
-    #             attr: {
-    #                 "$elemMatch": {
-    #                     nested_key1: {"$eq": nested_value1},
-    #                     nested_key2: {"$eq": nested_value2}
-    #                 }
-    #             }
-    #         },
-    #         {
-    #             attr: 1,
-    #             "_id": 1
-    #         }
-    #     )
-    #     for doc in docs:
-    #         print(doc)
-    #     return {
-    #         'query_type': query_type,
-    #         'query_params': query_params,
-    #         'collection': collection,
-    #         'query_str': query_str,
-    #         'query_projection': query_projection
-    #     }
-
-    def template_update_one_set(self):
-        pass
-
-    def template_update_one_unset(self):
-        pass
-
-    def template_update_many(self):
-        pass
-
-    def template_sort(self):
-        pass
-
-    def template_count_documents(self):
-        pass
-
-    def template_distinct(self):
-        pass
-
-    def template_match(self):
-        pass
-
-    def template_project(self):
-        pass
-
-    def template_unwind(self):
-        pass
-
-    def template_multiply(self):
-        pass
-
-    def template_lookup(self):
-        pass
+    def natural_lang_query_2(self, input):
+        tokens = input.split(" ")
+        if "display" in tokens and "all" in tokens:
+            collections = self.collections
+            for collection in collections:
+                if collection in tokens:
+                    params = {
+                        "collection": collection
+                    }
+                    result = self.template_find(params=params)
+                    print(result)
+                    return result
+                    break
+        elif "insert" in tokens:
+            for collection in self.collections:
+                if collection in tokens:
+                    matches = re.findall(r'\{[^{}]*\}', input)
+                    doc_str = matches[0]
+                    params = {
+                        "collection": collection,
+                        "doc_str": doc_str
+                    }
+                    result = self.template_insert_one(params=params)
+                    print(result)
+                    return result
+                    break
+        elif "starts" in tokens and "with" in tokens:
+            for collection in self.collections:
+                if collection in tokens:
+                    attributes = self.get_attribute_types(collection)
+                    for attr in attributes:
+                        if attr in tokens:
+                            value = tokens[-1]
+                            params = {
+                                "collection": collection,
+                                "attr": attr,
+                                "value": value,
+                                "starts_with": 1
+                            }
+                            result = self.template_find_regex_2(params=params)
+                            print(result)
+                            return result
+                            break
+        elif "ends" in tokens and "with" in tokens:
+            for collection in self.collections:
+                if collection in tokens:
+                    attributes = self.get_attribute_types(collection)
+                    for attr in attributes:
+                        if attr in tokens:
+                            value = tokens[-1]
+                            params = {
+                                "collection": collection,
+                                "attr": attr,
+                                "value": value,
+                                "starts_with": 0
+                            }
+                            result = self.template_find_regex_2(params=params)
+                            print(result)
+                            return result
+                            break
+        elif "and" in tokens and "greater" in tokens and "less" in tokens:
+            for collection in self.collections:
+                if collection in tokens:
+                    attributes = self.get_attribute_types(collection)
+                    for attr in attributes:
+                        if attr in tokens:
+                            matches = re.findall(r'greater than (\d+)', input)
+                            value1 = int(matches[0])
+                            matches = re.findall(r'less than (\d+)', input)
+                            value2 = int(matches[0])
+                            params = {
+                                "collection": collection,
+                                "attr": attr,
+                                "value1": value1,
+                                "value2": value2
+                            }
+                            result = self.template_find_and(params=params)
+                            print(result)
+                            return result
+                            break
+        elif "or" in tokens:
+            for collection in self.collections:
+                if collection in tokens:
+                    attributes = self.get_attribute_types(collection)
+                    for attr in attributes:
+                        if attr in tokens:
+                            matches = re.findall(r'(\d+) or (\d+)', input)
+                            values = [(int(num1), int(num2)) for num1, num2 in matches]
+                            value1, value2 = values[0]
+                            params = {
+                                "collection": collection,
+                                "attr": attr,
+                                "value1": value1,
+                                "value2": value2
+                            }
+                            result = self.template_find_or(params=params)
+                            print(result)
+                            return result
+                            break
