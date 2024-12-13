@@ -36,7 +36,6 @@ def upload_files():
             return jsonify({"message": "Files uploaded and processed successfully to MySQL!"}), 200
 
         except Exception as e:
-            print(str(e))
             return jsonify({"error": str(e)}), 500
 
     elif db_type == "mongodb":

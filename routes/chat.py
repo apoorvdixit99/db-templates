@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from services.mysql_query_generator import MySQLTemplate
-from templates.mongodb_template import MongoDBTemplate  # Import MongoDB template
+from services.mongodb_template import MongoDBTemplate  # Import MongoDB template
 import random
 import ast
 import json
@@ -86,17 +86,12 @@ def ask_question():
             template_map = {
                     "find projection": mongodb_template.template_find_with_projection,
                     "find": mongodb_template.template_find,
-                    # "find and sort": mongodb_template.template_find_and_sort,
-                    # "in": mongodb_template.template_find_array_in,
                     "starts with": mongodb_template.template_find_regex_2,
                     "ends with": mongodb_template.template_find_regex_2,
                     "regex": mongodb_template.template_find_regex,
-                    
                     "math operations": mongodb_template.template_find_math_operations,
                     "insert many": mongodb_template.template_insert_many,
                     "insert one": mongodb_template.template_insert_one,
-                    # "update one": mongodb_template.template_update_one,
-                    # "delete many": mongodb_template.template_delete_many,
                     "or condition": mongodb_template.template_find_or,
                     "and condition": mongodb_template.template_find_and,
                     "all": mongodb_template.template_find_array_all,
@@ -109,8 +104,6 @@ def ask_question():
             # Check for vague inputs
             if "example queries" in user_message_lower or "random queries" in user_message_lower:
                 random_queries = generate_random_queries(mongodb_template, count=5)
-                print(random_queries)
-                # return jsonify({"queries": random_queries, "message": "success"}), 200
                 return jsonify(random_queries), 200
             
             elif "example" in user_message_lower or "sample" in user_message_lower:
@@ -119,52 +112,15 @@ def ask_question():
                 for keyword, template_func in template_map.items():
                     if keyword in user_message.lower():
                         selected_template = template_func
-                        print(keyword)
                         break
                 
                 response = selected_template()
-                print(response)
                 return jsonify(response), 200
             
             # Otherwise, call the natural_language function
             else:
-                print(user_message)
                 response = mongodb_template.natural_lang_query_2(user_message)
                 return jsonify(response), 200
-
-
-            # # Match the identified template with the template map
-            # # selected_template = template_map.get(identified_template)
-            # # if not selected_template:
-            # #     return jsonify({"error": "Query type not identified"}), 400
-
-            # # Call the selected template with extracted details
-            # response = selected_template(collection=collection, field=field, value=value)
-            # print(response)
-            # return jsonify(response), 200
-
-
-            # # Check for vague inputs
-            # if "example queries" in user_message.lower() or "random queries" in user_message.lower():
-            #     random_queries = generate_random_queries(mongodb_template, count=5)
-            #     print(random_queries)
-            #     # return jsonify({"queries": random_queries, "message": "success"}), 200
-            #     return jsonify(random_queries), 200
-
-            # # Find a specific template based on the user's message
-            # selected_template = None
-            # for keyword, template_func in template_map.items():
-            #     if keyword in user_message.lower():
-            #         selected_template = template_func
-            #         print(keyword)
-            #         break
-
-            # if not selected_template:
-            #     return jsonify({"error": "Query type not identified"}), 400
-
-            # response = selected_template()
-            # print(response)
-            # return jsonify(response), 200
 
         except Exception as e:
             print(f"Error generating MongoDB query: {e}")
@@ -289,7 +245,6 @@ def generate_random_queries(template, count=5):
         try:
             # query = template_func()["query"] if isinstance(template, MySQLTemplate) else template_func()
             query = template_func()
-            print(template_func)
             random_queries.append(query)
         except Exception as e:
             print(f"Error generating random query: {e}")
@@ -314,8 +269,6 @@ def make_json_serializable(data):
 def run_query():
     """Execute the provided query for MySQL or MongoDB and return the result."""
     data = request.get_json()
-    print(data)
-    print("-----")
 
     query = data.get("query")
     db_name = data.get("dbName")
@@ -327,7 +280,6 @@ def run_query():
     try:
         if db_type.lower() == "mysql":
             # Handle MySQL queries
-            print(query)
             template = MySQLTemplate(db_name)
             result = template.execute_query(query)
             return jsonify({"result": result}), 200
@@ -343,7 +295,6 @@ def run_query():
 
                 print(f"Constructed database name: {db_name}")  # Debugging print
                 template = MongoDBTemplate(db_name)
-                print(query)
                 
                 # Execute the MongoDB query directly
                 result = template.execute_query(query)

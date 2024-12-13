@@ -15,9 +15,6 @@ class MongoDBTemplate:
 
     def __init__(self, db_name, uri="mongodb://localhost:27017/"):
         self.uri = URI
-        # self.client = MongoClient(self.uri, server_api=ServerApi('1'))
-        # self.db = self.client[DATABASE]
-        # self.collections = self.db.list_collection_names()
         self.client = MongoClient(MONGO_URI, server_api=ServerApi('1'))
         self.db = self.client[db_name]
         self.collections = self.db.list_collection_names()
@@ -48,26 +45,6 @@ class MongoDBTemplate:
     
     def get_all_collections(self):
         return self.collections
-    
-    # def execute_query(self, query):
-    #     collection_name = query['collection']
-    #     collection = self.db[collection_name]
-    #     def default_case():
-    #         return "Invalid Query"
-    #     switch = {
-    #         "insertOne": collection.insert_one,
-    #         "insertMany": collection.insert_many,
-    #         "find": collection.find
-    #     }
-    #     query_func = switch.get(
-    #         query['query_type'], 
-    #         default_case
-    #     )
-    #     if 'query_projection' not in query.keys():
-    #         result = query_func(query['query_params'])
-    #     else:
-    #         result = query_func(query['query_params'], query['query_projection'])
-    #     return result
 
     def execute_query(self, query):
 
@@ -166,7 +143,6 @@ class MongoDBTemplate:
     def template_find_math_operations(self, collection=None, query_params=None):
         collection = random.choice(self.collections)
         query_type = 'find'
-        print("Hi")
 
         attributes = self.get_attribute_types(collection)
         int_attributes = [key for key, value in attributes.items() if value == 'int']
@@ -176,7 +152,6 @@ class MongoDBTemplate:
         unique_values = list(unique_values)
         value = random.choice(unique_values)
         op = random.choice(self.math_operations)
-        print("Hi2")
         query_params = {
             attr: {
                 op: value
@@ -192,14 +167,12 @@ class MongoDBTemplate:
             '$ne': 'not equal to',
         }
         query_params_desc = str(attr)+' '+math_op_str[op]+' '+str(value)
-        print("Hi3")
         if op=='$ne':
             query_params[attr]['$exists'] = True
         query_projection = {
             attr: 1,
             '_id': 1
         }
-        print("Hi4")
         query_str = f"""db.{collection}.{query_type}({query_params},{query_projection})"""
         query_desc = f"""Found results of math operation {query_params_desc} on '{collection}' collection """            
 
@@ -603,7 +576,6 @@ class MongoDBTemplate:
                         "collection": collection
                     }
                     result = self.template_find(params=params)
-                    print(result)
                     return result
                     break
         elif "insert" in tokens:
@@ -616,7 +588,6 @@ class MongoDBTemplate:
                         "doc_str": doc_str
                     }
                     result = self.template_insert_one(params=params)
-                    print(result)
                     return result
                     break
         elif "starts" in tokens and "with" in tokens:
@@ -633,7 +604,6 @@ class MongoDBTemplate:
                                 "starts_with": 1
                             }
                             result = self.template_find_regex_2(params=params)
-                            print(result)
                             return result
                             break
         elif "ends" in tokens and "with" in tokens:
@@ -650,7 +620,6 @@ class MongoDBTemplate:
                                 "starts_with": 0
                             }
                             result = self.template_find_regex_2(params=params)
-                            print(result)
                             return result
                             break
         elif "and" in tokens and "greater" in tokens and "less" in tokens:
@@ -670,7 +639,6 @@ class MongoDBTemplate:
                                 "value2": value2
                             }
                             result = self.template_find_and(params=params)
-                            print(result)
                             return result
                             break
         elif "or" in tokens:
@@ -689,6 +657,5 @@ class MongoDBTemplate:
                                 "value2": value2
                             }
                             result = self.template_find_or(params=params)
-                            print(result)
                             return result
                             break

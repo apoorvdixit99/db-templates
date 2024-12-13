@@ -17,7 +17,6 @@ def fetch_data():
             data = fetch_mysql_tables_with_sample_data(db_name)
             return jsonify({"tables": data}), 200
         except Exception as e:
-            print(str(e))
             return jsonify({"error": str(e)}), 500
 
     elif db_type == "mongodb":
@@ -36,7 +35,6 @@ def fetch_data():
             
             return jsonify({"collections": serializable_data}), 200
         except Exception as e:
-            print(str(e))
             return jsonify({"error": str(e)}), 500
 
     else:
